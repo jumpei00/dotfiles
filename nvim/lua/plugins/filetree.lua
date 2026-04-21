@@ -15,6 +15,19 @@ return {
         },
         renderer = {
           group_empty = true,
+          icons = {
+            glyphs = {
+              git = {
+                unstaged  = "M",
+                staged    = "A",
+                unmerged  = "U",
+                renamed   = "R",
+                untracked = "?",
+                deleted   = "D",
+                ignored   = "I",
+              },
+            },
+          },
         },
         update_focused_file = {
           enable = true,
