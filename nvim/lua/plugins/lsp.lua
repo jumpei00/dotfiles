@@ -7,6 +7,7 @@ local servers = {
   "dockerls",
   "zls",
   "pyright",
+  "ruby_lsp",
 }
 
 return {

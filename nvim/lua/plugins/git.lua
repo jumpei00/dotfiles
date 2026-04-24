@@ -69,25 +69,4 @@ return {
       })
     end,
   },
-  {
-    "pwntester/octo.nvim",
-    cmd = "Octo",
-    dependencies = {
-      "nvim-lua/plenary.nvim",
-      "nvim-telescope/telescope.nvim",
-      "sindrets/diffview.nvim",
-      "nvim-tree/nvim-web-devicons",
-    },
-    config = function()
-      require("octo").setup({ enable_builtin = true })
-      vim.treesitter.language.register("markdown", "octo")
-    end,
-    keys = {
-      { "<leader>gp", "<cmd>Octo pr list<cr>", desc = "GitHub PR list" },
-      { "<leader>gP", "<cmd>Octo pr search<cr>", desc = "GitHub PR search" },
-      { "<leader>gi", "<cmd>Octo issue list<cr>", desc = "GitHub Issue list" },
-      { "<leader>gr", "<cmd>Octo review start<cr>", desc = "Start PR review" },
-      { "<leader>gR", "<cmd>Octo review resume<cr>", desc = "Resume PR review" },
-    },
-  },
 }
