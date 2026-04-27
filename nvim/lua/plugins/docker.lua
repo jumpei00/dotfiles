@@ -8,10 +8,8 @@ return {
     config = function()
       require("toggleterm").setup({
         open_mapping = [[<c-\>]],
-        direction = "float",
-        float_opts = {
-          border = "curved",
-        },
+        direction = "horizontal",
+        size = 15,
       })
 
       local Terminal = require("toggleterm.terminal").Terminal
