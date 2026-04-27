@@ -8,6 +8,14 @@ map("n", "<Esc>", "<cmd>nohlsearch<cr>")
 map("n", "H", "^", { desc = "Go to first non-blank character" })
 map("n", "L", "$", { desc = "Go to end of line" })
 
+-- Insert mode cursor movement, matching common macOS text controls.
+map("i", "<C-f>", "<Right>", { desc = "Move right" })
+map("i", "<C-b>", "<Left>", { desc = "Move left" })
+map("i", "<C-p>", "<Up>", { desc = "Move up" })
+map("i", "<C-n>", "<Down>", { desc = "Move down" })
+map("i", "<C-a>", "<Home>", { desc = "Move to start of line" })
+map("i", "<C-e>", "<End>", { desc = "Move to end of line" })
+
 -- ウィンドウ移動
 map("n", "<C-h>", "<C-w>h")
 map("n", "<C-j>", "<C-w>j")
