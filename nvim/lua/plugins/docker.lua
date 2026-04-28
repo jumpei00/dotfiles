@@ -4,6 +4,7 @@ return {
     version = "*",
     keys = {
       { "<leader>ld", desc = "Lazydocker" },
+      { [[<C-\>]], mode = { "n", "t" }, desc = "Toggle terminal" },
     },
     config = function()
       require("toggleterm").setup({
