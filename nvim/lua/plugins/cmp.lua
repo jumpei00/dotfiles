@@ -18,10 +18,18 @@ return {
         mapping = cmp.mapping.preset.insert({
           ["<C-Space>"] = cmp.mapping.complete(),
           ["<C-n>"] = cmp.mapping(function()
-            vim.api.nvim_feedkeys(vim.keycode("<Down>"), "n", false)
+            if cmp.visible() then
+              cmp.select_next_item()
+            else
+              vim.api.nvim_feedkeys(vim.keycode("<Down>"), "n", false)
+            end
           end, { "i", "s" }),
           ["<C-p>"] = cmp.mapping(function()
-            vim.api.nvim_feedkeys(vim.keycode("<Up>"), "n", false)
+            if cmp.visible() then
+              cmp.select_prev_item()
+            else
+              vim.api.nvim_feedkeys(vim.keycode("<Up>"), "n", false)
+            end
           end, { "i", "s" }),
           ["<C-a>"] = cmp.mapping(function()
             vim.api.nvim_feedkeys(vim.keycode("<Home>"), "n", false)

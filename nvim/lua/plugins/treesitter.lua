@@ -10,7 +10,9 @@ return {
       require("nvim-treesitter").setup(opts)
       require("nvim-treesitter").install({
         "go",
+        "java",
         "javascript",
+        "kotlin",
         "lua",
         "python",
         "query",

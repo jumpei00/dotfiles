@@ -8,6 +8,8 @@ local servers = {
   "zls",
   "pyright",
   "ruby_lsp",
+  "jdtls",
+  "kotlin_lsp",
 }
 
 return {
@@ -46,6 +48,10 @@ return {
             },
           },
         },
+      })
+
+      vim.lsp.config("kotlin_lsp", {
+        cmd = { "intellij-server", "--stdio" },
       })
     end,
   },
