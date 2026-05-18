@@ -25,6 +25,11 @@ map("n", "<C-l>", "<C-w>l")
 -- LSP definition jump (overrides default vim `gd`)
 map("n", "gd", vim.lsp.buf.definition, { desc = "LSP goto definition" })
 
+-- Diagnostic navigation and details
+map("n", "]d", function() vim.diagnostic.jump({ count = 1 }) end, { desc = "Next diagnostic" })
+map("n", "[d", function() vim.diagnostic.jump({ count = -1 }) end, { desc = "Previous diagnostic" })
+map("n", "<leader>d", vim.diagnostic.open_float, { desc = "Show diagnostic" })
+
 -- GitHub PR review helpers (gh cli + diffview, no checkout)
 local current_pr = nil
 

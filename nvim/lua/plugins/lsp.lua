@@ -53,6 +53,12 @@ return {
       vim.lsp.config("kotlin_lsp", {
         cmd = { "intellij-server", "--stdio" },
       })
+
+      vim.diagnostic.config({
+        virtual_lines = { current_line = true },
+        severity_sort = true,
+        float = { border = "rounded", source = true },
+      })
     end,
   },
 }
