@@ -16,6 +16,9 @@ map("i", "<C-n>", "<Down>", { desc = "Move down" })
 map("i", "<C-a>", "<Home>", { desc = "Move to start of line" })
 map("i", "<C-e>", "<End>", { desc = "Move to end of line" })
 
+-- Exit terminal mode without conflicting with toggleterm's <C-\> mapping.
+map("t", "<Esc><Esc>", [[<C-\><C-n>]], { desc = "Exit terminal mode", nowait = true })
+
 -- ウィンドウ移動
 map("n", "<C-h>", "<C-w>h")
 map("n", "<C-j>", "<C-w>j")
