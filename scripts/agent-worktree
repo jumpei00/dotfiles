@@ -234,7 +234,7 @@ ensure_herdr_server() {
 
   herdr --session "$agent-$repo_name" server >/dev/null 2>&1 &
 
-  for _ in $(seq 1 50); do
+  for _ in $(seq 1 300); do
     if herdr_cmd status 2>/dev/null | grep -q "status: running"; then
       return 0
     fi
