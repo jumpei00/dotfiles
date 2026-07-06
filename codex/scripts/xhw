@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+exec "$HOME/dotfiles/scripts/agent-worktree" --agent codex --ui herdr "$@"

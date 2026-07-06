@@ -1,0 +1,158 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+dry_run="no"
+skip_ai="no"
+
+usage() {
+  cat >&2 <<'EOF'
+usage: scripts/install-deps [--dry-run] [--skip-ai]
+
+Install the external tools used by this dotfiles repository.
+
+  --dry-run   Print commands without running them.
+  --skip-ai   Skip Claude Code, Codex, and Herdr integrations.
+EOF
+  exit "${1:-1}"
+}
+
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --dry-run)
+      dry_run="yes"
+      shift
+      ;;
+    --skip-ai)
+      skip_ai="yes"
+      shift
+      ;;
+    -h|--help)
+      usage 0
+      ;;
+    *)
+      usage 1
+      ;;
+  esac
+done
+
+run() {
+  local cmd=("$@")
+
+  printf "+"
+  for arg in "${cmd[@]}"; do
+    printf " %q" "$arg"
+  done
+  printf "\n"
+
+  if [ "$dry_run" = "no" ]; then
+    "${cmd[@]}"
+  fi
+}
+
+ensure_homebrew() {
+  if command -v brew >/dev/null 2>&1; then
+    return
+  fi
+
+  run /bin/bash -c '$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)'
+
+  if [ -x /opt/homebrew/bin/brew ]; then
+    eval "$(/opt/homebrew/bin/brew shellenv)"
+  elif [ -x /usr/local/bin/brew ]; then
+    eval "$(/usr/local/bin/brew shellenv)"
+  fi
+}
+
+brew_install_formulae() {
+  local formulae=(
+    neovim
+    tmux
+    lazydocker
+    gh
+    jq
+    ripgrep
+    mise
+    mysql-client
+    postgresql
+    herdr
+    node
+    go
+    python
+    ruby
+    kotlin
+    zig
+    stylua
+    lua-language-server
+    ruff
+  )
+
+  run brew update
+  run brew install "${formulae[@]}"
+}
+
+brew_install_casks() {
+  local casks=(
+    ghostty
+    font-jetbrains-mono-nerd-font
+    temurin
+  )
+
+  if [ "$skip_ai" = "no" ]; then
+    casks+=(codex)
+  fi
+
+  run brew install --cask "${casks[@]}"
+}
+
+npm_install_globals() {
+  local packages=(
+    prettier
+    sql-formatter
+    pyright
+    typescript
+    typescript-language-server
+    yaml-language-server
+    vscode-langservers-extracted
+    dockerfile-language-server-nodejs
+  )
+
+  if [ "$skip_ai" = "no" ]; then
+    packages+=("@anthropic-ai/claude-code")
+  fi
+
+  run npm install -g "${packages[@]}"
+}
+
+go_install_tools() {
+  run go install golang.org/x/tools/gopls@latest
+  run go install golang.org/x/tools/cmd/goimports@latest
+}
+
+install_herdr_integrations() {
+  [ "$skip_ai" = "no" ] || return 0
+  run herdr integration install claude
+  run herdr integration install codex
+}
+
+main() {
+  ensure_homebrew
+  brew_install_formulae
+  brew_install_casks
+  npm_install_globals
+  go_install_tools
+  install_herdr_integrations
+
+  cat <<'EOF'
+
+Done.
+
+Manual follow-up:
+  - Run: gh auth login
+  - Run: codex login
+  - Run Claude Code's login flow on first launch.
+  - Start nvim once so lazy.nvim, Mason LSP servers, and Treesitter parsers can install.
+  - If Kotlin LSP fails with "intellij-server not found", install/provide intellij-server or change nvim/lua/plugins/lsp.lua to use Mason's kotlin_lsp default command.
+EOF
+}
+
+main

@@ -1,0 +1,301 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+usage() {
+  local exit_code="${1:-1}"
+  cat >&2 <<'EOF'
+usage: agent-worktree --agent claude|codex --ui tmux|herdr [--attach|--no-attach] [--prompt] [-r|-c] [worktree-name]
+
+Launch an agent workspace for the current git repository.
+
+  --agent claude|codex   Agent CLI to launch.
+  --ui tmux|herdr        Terminal workspace backend.
+  -r                     Resume picker.
+  -c                     Continue latest session.
+  --no-attach            Do not attach Herdr after creating/focusing the workspace.
+  --prompt               Prompt for the worktree name when none is provided.
+EOF
+  exit "$exit_code"
+}
+
+agent=""
+ui=""
+mode="fresh"
+attach="yes"
+prompt="no"
+
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --agent)
+      [ $# -ge 2 ] || usage
+      agent="$2"
+      shift 2
+      ;;
+    --ui)
+      [ $# -ge 2 ] || usage
+      ui="$2"
+      shift 2
+      ;;
+    --attach)
+      attach="yes"
+      shift
+      ;;
+    --no-attach)
+      attach="no"
+      shift
+      ;;
+    --prompt)
+      prompt="yes"
+      shift
+      ;;
+    -r)
+      mode="resume"
+      shift
+      ;;
+    -c)
+      mode="continue"
+      shift
+      ;;
+    -h|--help)
+      usage 0
+      ;;
+    --)
+      shift
+      break
+      ;;
+    -*)
+      usage
+      ;;
+    *)
+      break
+      ;;
+  esac
+done
+
+[ "$agent" = "claude" ] || [ "$agent" = "codex" ] || usage
+[ "$ui" = "tmux" ] || [ "$ui" = "herdr" ] || usage
+[ $# -le 1 ] || usage
+
+if [ "$prompt" = "yes" ] && [ $# -eq 0 ]; then
+  printf "worktree name (blank for main): " >&2
+  IFS= read -r prompted_workspace
+  if [ -n "$prompted_workspace" ]; then
+    set -- "$prompted_workspace"
+  fi
+fi
+
+repo_root=$(git rev-parse --show-toplevel 2>/dev/null) || {
+  echo "agent-worktree: not inside a git repository" >&2
+  exit 1
+}
+
+repo_name=$(basename "$repo_root")
+workspace="${1:-main}"
+
+if [ "$workspace" = "main" ]; then
+  target_dir="$repo_root"
+else
+  target_dir="$repo_root/.$agent/worktrees/$workspace"
+fi
+
+shell_quote() {
+  printf "%q" "$1"
+}
+
+ensure_worktree() {
+  [ "$workspace" != "main" ] || return 0
+
+  if [ -e "$target_dir/.git" ]; then
+    return 0
+  fi
+
+  if [ -e "$target_dir" ] && [ ! -e "$target_dir/.git" ]; then
+    echo "agent-worktree: $target_dir exists but is not a git worktree" >&2
+    exit 1
+  fi
+
+  ensure_worktree_excludes
+
+  mkdir -p "$(dirname "$target_dir")"
+
+  if git -C "$repo_root" show-ref --verify --quiet "refs/heads/$workspace"; then
+    git -C "$repo_root" worktree add "$target_dir" "$workspace"
+  else
+    git -C "$repo_root" worktree add -b "$workspace" "$target_dir" HEAD
+  fi
+}
+
+ensure_worktree_excludes() {
+  local git_dir exclude pattern
+  git_dir=$(git -C "$repo_root" rev-parse --git-dir)
+  case "$git_dir" in
+    /*) ;;
+    *) git_dir="$repo_root/$git_dir" ;;
+  esac
+
+  exclude="$git_dir/info/exclude"
+  mkdir -p "$(dirname "$exclude")"
+
+  for pattern in "/.claude/worktrees/" "/.codex/worktrees/"; do
+    if [ ! -f "$exclude" ] || ! grep -qxF "$pattern" "$exclude"; then
+      printf "%s\n" "$pattern" >>"$exclude"
+    fi
+  done
+}
+
+agent_command() {
+  case "$agent:$mode" in
+    claude:fresh)
+      if [ "$workspace" = "main" ]; then
+        printf "claude"
+      else
+        printf "claude -w %s" "$(shell_quote "$workspace")"
+      fi
+      ;;
+    claude:resume)
+      if [ "$workspace" = "main" ]; then
+        printf "claude -r"
+      else
+        printf "claude -r -w %s" "$(shell_quote "$workspace")"
+      fi
+      ;;
+    claude:continue)
+      if [ "$workspace" = "main" ]; then
+        printf "claude -c"
+      else
+        printf "claude -c -w %s" "$(shell_quote "$workspace")"
+      fi
+      ;;
+    codex:fresh)
+      printf "codex -C %s" "$(shell_quote "$target_dir")"
+      ;;
+    codex:resume)
+      printf "codex -C %s resume" "$(shell_quote "$target_dir")"
+      ;;
+    codex:continue)
+      printf "codex -C %s resume --last" "$(shell_quote "$target_dir")"
+      ;;
+  esac
+}
+
+agent_cwd() {
+  if [ "$agent" = "claude" ] && [ "$workspace" != "main" ]; then
+    printf "%s" "$repo_root"
+  else
+    printf "%s" "$target_dir"
+  fi
+}
+
+launch_tmux() {
+  local session window editor_cmd agent_cmd
+  local agent_dir
+  session="$agent-$repo_name"
+  window="$workspace"
+  agent_dir=$(agent_cwd)
+  editor_cmd="cd $(shell_quote "$target_dir") && nvim ."
+  agent_cmd="cd $(shell_quote "$agent_dir") && $(agent_command)"
+
+  if tmux has-session -t="$session" 2>/dev/null && \
+     tmux list-windows -t "$session" -F '#W' | grep -qx "$window"; then
+    if [ -n "${TMUX:-}" ]; then
+      tmux switch-client -t "$session:$window"
+    else
+      tmux attach-session -t "$session:$window"
+    fi
+    return
+  fi
+
+  if tmux has-session -t="$session" 2>/dev/null; then
+    tmux new-window -d -t "$session:" -n "$window" -c "$target_dir"
+  else
+    tmux new-session -d -s "$session" -n "$window" -c "$target_dir"
+  fi
+
+  tmux split-window -h -l 33% -t "$session:$window" -c "$target_dir"
+  tmux send-keys -t "$session:$window.0" "$editor_cmd" C-m
+  tmux send-keys -t "$session:$window.1" "$agent_cmd" C-m
+  tmux select-pane -t "$session:$window.0"
+
+  if [ -n "${TMUX:-}" ]; then
+    tmux switch-client -t "$session:$window"
+  else
+    tmux attach-session -t "$session:$window"
+  fi
+}
+
+herdr_cmd() {
+  herdr --session "$agent-$repo_name" "$@"
+}
+
+ensure_herdr_server() {
+  if herdr_cmd status 2>/dev/null | grep -q "status: running"; then
+    return 0
+  fi
+
+  herdr --session "$agent-$repo_name" server >/dev/null 2>&1 &
+
+  for _ in $(seq 1 50); do
+    if herdr_cmd status 2>/dev/null | grep -q "status: running"; then
+      return 0
+    fi
+    sleep 0.1
+  done
+
+  echo "agent-worktree: timed out waiting for Herdr server" >&2
+  exit 1
+}
+
+launch_herdr() {
+  local workspace_id root_pane_id agent_pane_id create_out
+  local editor_cmd agent_cmd
+  local agent_dir
+
+  command -v jq >/dev/null 2>&1 || {
+    echo "agent-worktree: jq is required for Herdr workspace management" >&2
+    exit 1
+  }
+
+  ensure_herdr_server
+
+  workspace_id=$(
+    herdr_cmd workspace list |
+      jq -r --arg label "$workspace" '.result.workspaces[]? | select(.label == $label) | .workspace_id' |
+      head -n 1
+  )
+
+  if [ -n "$workspace_id" ]; then
+    herdr_cmd workspace focus "$workspace_id" >/dev/null
+    if [ "$attach" = "yes" ]; then
+      exec herdr --session "$agent-$repo_name"
+    fi
+    return
+  fi
+
+  create_out=$(herdr_cmd workspace create --cwd "$target_dir" --label "$workspace" --focus)
+  workspace_id=$(printf "%s" "$create_out" | jq -r '.result.workspace.workspace_id')
+  root_pane_id=$(printf "%s" "$create_out" | jq -r '.result.root_pane.pane_id')
+
+  editor_cmd="nvim ."
+  agent_cmd=$(agent_command)
+  agent_dir=$(agent_cwd)
+
+  herdr_cmd pane run "$root_pane_id" "$editor_cmd" >/dev/null
+  agent_pane_id=$(
+    herdr_cmd pane split "$root_pane_id" --direction right --ratio 0.33 --cwd "$agent_dir" --focus |
+      jq -r '.result.pane.pane_id'
+  )
+  herdr_cmd pane run "$agent_pane_id" "$agent_cmd" >/dev/null
+  herdr_cmd pane focus --direction left --pane "$agent_pane_id" >/dev/null || true
+  herdr_cmd workspace focus "$workspace_id" >/dev/null
+
+  if [ "$attach" = "yes" ]; then
+    exec herdr --session "$agent-$repo_name"
+  fi
+}
+
+ensure_worktree
+
+case "$ui" in
+  tmux) launch_tmux ;;
+  herdr) launch_herdr ;;
+esac
