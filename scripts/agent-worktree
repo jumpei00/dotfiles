@@ -89,6 +89,13 @@ repo_root=$(git rev-parse --show-toplevel 2>/dev/null) || {
   exit 1
 }
 
+if [ "$ui" = "herdr" ]; then
+  common_git_dir=$(git -C "$repo_root" rev-parse --path-format=absolute --git-common-dir)
+  if [ "$(basename "$common_git_dir")" = ".git" ]; then
+    repo_root=$(dirname "$common_git_dir")
+  fi
+fi
+
 repo_name=$(basename "$repo_root")
 workspace="${1:-main}"
 
@@ -104,6 +111,8 @@ shell_quote() {
 
 ensure_worktree() {
   [ "$workspace" != "main" ] || return 0
+  ensure_worktree_excludes
+  [ "$agent" != "claude" ] || return 0
 
   if [ -e "$target_dir/.git" ]; then
     return 0
@@ -113,8 +122,6 @@ ensure_worktree() {
     echo "agent-worktree: $target_dir exists but is not a git worktree" >&2
     exit 1
   fi
-
-  ensure_worktree_excludes
 
   mkdir -p "$(dirname "$target_dir")"
 
@@ -188,12 +195,23 @@ agent_cwd() {
 
 launch_tmux() {
   local session window editor_cmd agent_cmd
-  local agent_dir
-  session="$agent-$repo_name"
+  local agent_dir start_dir
+  session="$repo_name"
   window="$workspace"
   agent_dir=$(agent_cwd)
-  editor_cmd="cd $(shell_quote "$target_dir") && nvim ."
   agent_cmd="cd $(shell_quote "$agent_dir") && $(agent_command)"
+
+  if [ "$agent" = "claude" ]; then
+    start_dir="$repo_root"
+  else
+    start_dir="$target_dir"
+  fi
+
+  if [ "$agent" = "claude" ] && [ "$workspace" != "main" ]; then
+    editor_cmd="until [ -d $(shell_quote "$target_dir") ]; do sleep 0.5; done; cd $(shell_quote "$target_dir") && vi ."
+  else
+    editor_cmd="cd $(shell_quote "$target_dir") && vi ."
+  fi
 
   if tmux has-session -t="$session" 2>/dev/null && \
      tmux list-windows -t "$session" -F '#W' | grep -qx "$window"; then
@@ -206,14 +224,14 @@ launch_tmux() {
   fi
 
   if tmux has-session -t="$session" 2>/dev/null; then
-    tmux new-window -d -t "$session:" -n "$window" -c "$target_dir"
+    tmux new-window -d -t "$session:" -n "$window" -c "$start_dir"
   else
-    tmux new-session -d -s "$session" -n "$window" -c "$target_dir"
+    tmux new-session -d -s "$session" -n "$window" -c "$start_dir"
   fi
 
-  tmux split-window -h -l 33% -t "$session:$window" -c "$target_dir"
-  tmux send-keys -t "$session:$window.0" "$editor_cmd" C-m
+  tmux split-window -h -l 33% -t "$session:$window" -c "$start_dir"
   tmux send-keys -t "$session:$window.1" "$agent_cmd" C-m
+  tmux send-keys -t "$session:$window.0" "$editor_cmd" C-m
   tmux select-pane -t "$session:$window.0"
 
   if [ -n "${TMUX:-}" ]; then
@@ -224,7 +242,7 @@ launch_tmux() {
 }
 
 herdr_cmd() {
-  herdr --session "$agent-$repo_name" "$@"
+  herdr --session "$repo_name" "$@"
 }
 
 ensure_herdr_server() {
@@ -232,7 +250,7 @@ ensure_herdr_server() {
     return 0
   fi
 
-  herdr --session "$agent-$repo_name" server >/dev/null 2>&1 &
+  herdr --session "$repo_name" server >/dev/null 2>&1 &
 
   for _ in $(seq 1 300); do
     if herdr_cmd status 2>/dev/null | grep -q "status: running"; then
@@ -246,7 +264,7 @@ ensure_herdr_server() {
 }
 
 launch_herdr() {
-  local workspace_id root_pane_id agent_pane_id create_out
+  local workspace_id editor_tab_id root_pane_id agent_pane_id create_out tab_out
   local editor_cmd agent_cmd
   local agent_dir
 
@@ -266,30 +284,43 @@ launch_herdr() {
   if [ -n "$workspace_id" ]; then
     herdr_cmd workspace focus "$workspace_id" >/dev/null
     if [ "$attach" = "yes" ]; then
-      exec herdr --session "$agent-$repo_name"
+      exec herdr --session "$repo_name"
     fi
     return
   fi
 
-  create_out=$(herdr_cmd workspace create --cwd "$target_dir" --label "$workspace" --focus)
+  if [ "$agent" = "claude" ] && [ "$workspace" != "main" ] && [ ! -d "$target_dir" ]; then
+    create_out=$(herdr_cmd workspace create --cwd "$repo_root" --label "$workspace" --focus)
+  else
+    create_out=$(herdr_cmd workspace create --cwd "$target_dir" --label "$workspace" --focus)
+  fi
   workspace_id=$(printf "%s" "$create_out" | jq -r '.result.workspace.workspace_id')
+  editor_tab_id=$(printf "%s" "$create_out" | jq -r '.result.tab.tab_id')
   root_pane_id=$(printf "%s" "$create_out" | jq -r '.result.root_pane.pane_id')
 
-  editor_cmd="nvim ."
   agent_cmd=$(agent_command)
   agent_dir=$(agent_cwd)
 
+  if [ "$agent" = "claude" ] && [ "$workspace" != "main" ]; then
+    editor_cmd="until [ -d $(shell_quote "$target_dir") ]; do sleep 0.5; done; cd $(shell_quote "$target_dir") && vi ."
+  else
+    editor_cmd="vi ."
+  fi
+
   herdr_cmd pane run "$root_pane_id" "$editor_cmd" >/dev/null
+  herdr_cmd tab rename "$editor_tab_id" "nvim" >/dev/null
+  tab_out=$(
+    herdr_cmd tab create --workspace "$workspace_id" --cwd "$agent_dir" --label "$agent" --focus
+  )
   agent_pane_id=$(
-    herdr_cmd pane split "$root_pane_id" --direction right --ratio 0.33 --cwd "$agent_dir" --focus |
-      jq -r '.result.pane.pane_id'
+    printf "%s" "$tab_out" | jq -r '.result.root_pane.pane_id'
   )
   herdr_cmd pane run "$agent_pane_id" "$agent_cmd" >/dev/null
-  herdr_cmd pane focus --direction left --pane "$agent_pane_id" >/dev/null || true
+  herdr_cmd tab focus "$editor_tab_id" >/dev/null
   herdr_cmd workspace focus "$workspace_id" >/dev/null
 
   if [ "$attach" = "yes" ]; then
-    exec herdr --session "$agent-$repo_name"
+    exec herdr --session "$repo_name"
   fi
 }
 

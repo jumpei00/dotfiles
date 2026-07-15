@@ -7,18 +7,18 @@ while getopts "rc" opt; do
   case "$opt" in
     r) resume_flag="-r" ;;
     c) resume_flag="-c" ;;
-    *) echo "usage: cw [-r|-c] [worktree-name]" >&2; exit 1 ;;
+    *) echo "usage: cct [-r|-c] [worktree-name]" >&2; exit 1 ;;
   esac
 done
 shift $((OPTIND - 1))
 
 if [ $# -gt 1 ]; then
-  echo "usage: cw [-r|-c] [worktree-name]" >&2
+  echo "usage: cct [-r|-c] [worktree-name]" >&2
   exit 1
 fi
 
 repo_root=$(git rev-parse --show-toplevel 2>/dev/null) || {
-  echo "cw: not inside a git repository" >&2
+  echo "cct: not inside a git repository" >&2
   exit 1
 }
 

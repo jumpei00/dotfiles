@@ -65,8 +65,8 @@ Claude Code は初回起動時にログインしてください。
 
 | ツール | 用途 | インストール |
 |---|---|---|
-| Claude Code | 仕事用 AI agent、`cw`/`chw` | `npm install -g @anthropic-ai/claude-code` |
-| Codex CLI | Codex agent、`xw`/`xhw` | `brew install --cask codex` |
+| Claude Code | 仕事用 AI agent、`cct`/`cch` | `npm install -g @anthropic-ai/claude-code` |
+| Codex CLI | Codex agent、`cdt`/`cdh` | `brew install --cask codex` |
 | Herdr Claude integration | Herdr の agent panel/notification | `herdr integration install claude` |
 | Herdr Codex integration | Herdr の agent panel/notification | `herdr integration install codex` |
 
@@ -172,8 +172,11 @@ Herdr も prefix は `Ctrl-q` です。
 
 - `Ctrl-q h/j/k/l` - pane 移動
 - `Ctrl-q w` - workspace picker
+- `Ctrl-q K/J` - 前/次の workspace に移動
+- `Ctrl-q 1..9` - workspace 番号へ移動
+- `Ctrl-q n/p` - 次/前の tab に移動
 - `Ctrl-q b` - sidebar/agent panel 切り替え
-- `Ctrl-q Alt-c` - Claude Code + Herdr workspace を作成
+- `Ctrl-q Alt-n` - Claude Code + Herdr workspace を作成
 - `Ctrl-q Alt-r` - Claude Code + Herdr workspace を resume 付きで作成
 - `Ctrl-q Alt-x` - Codex + Herdr workspace を作成
 - `Ctrl-q Alt-z` - Codex + Herdr workspace を resume 付きで作成
@@ -184,37 +187,37 @@ Herdr も prefix は `Ctrl-q` です。
 
 | コマンド | Agent | UI |
 |---|---|---|
-| `cw` | Claude Code | tmux |
-| `chw` | Claude Code | Herdr |
-| `xw` | Codex | tmux |
-| `xhw` | Codex | Herdr |
+| `cct` | Claude Code | tmux |
+| `cch` | Claude Code | Herdr |
+| `cdt` | Codex | tmux |
+| `cdh` | Codex | Herdr |
 
 使い方:
 
 ```sh
-cw              # repo root を main として開く
-cw feature-a    # .claude/worktrees/feature-a を作成/利用
-chw feature-a   # Claude Code + Herdr
-xw feature-a    # Codex + tmux
-xhw feature-a   # Codex + Herdr
+cct             # repo root を main として開く
+cct feature-a   # .claude/worktrees/feature-a を作成/利用
+cch feature-a   # Claude Code + Herdr
+cdt feature-a   # Codex + tmux
+cdh feature-a   # Codex + Herdr
 ```
 
 resume:
 
 ```sh
-cw -r feature-a
-chw -r feature-a
-xw -r feature-a
-xhw -r feature-a
+cct -r feature-a
+cch -r feature-a
+cdt -r feature-a
+cdh -r feature-a
 ```
 
 continue:
 
 ```sh
-cw -c feature-a
-chw -c feature-a
-xw -c feature-a
-xhw -c feature-a
+cct -c feature-a
+cch -c feature-a
+cdt -c feature-a
+cdh -c feature-a
 ```
 
 worktree の置き場:
@@ -224,15 +227,25 @@ worktree の置き場:
 
 `main` は worktree を作らず repo root を使います。
 
+tmux session / Herdr session は repo 名で作成します。window / workspace は worktree 名です。
+
+tmux は1 window内に左ペインでNeovim、右ペインでAgentを起動します。Herdrは1 workspace内に2 tabを作り、`nvim` tabでNeovim、`claude`または`codex` tabでAgentを起動します。Herdr起動直後は`nvim` tabを表示し、`Ctrl-q n` / `Ctrl-q p`でAgent tabとの間を移動できます。
+
+Herdrでは、どのworkspaceから新しいworkspaceを作成してもmain repoを基準にします。Claudeのworktreeは`<main-repo>/.claude/worktrees/<name>`、Codexのworktreeは`<main-repo>/.codex/worktrees/<name>`に作成され、同じrepo名のHerdr sessionへworkspaceが追加されます。
+
+Claude Code は `claude -w <name>` の worktree 作成機能に任せます。Codex には同等の worktree 作成機能がないため、launcher が `.codex/worktrees/<name>` を `git worktree add` で作成してから `codex -C <path>` を起動します。
+
+既に同名の window / workspace がある場合は、agent を起動し直さずそこへ移動します。同じ worktree で別 agent を使いたい場合は、その workspace / window 内で手動で pane を開いて起動してください。
+
 ## zsh alias
 
 `~/.zshrc` に追記してください。
 
 ```sh
-alias cw="$HOME/dotfiles/claude/scripts/cw"
-alias chw="$HOME/dotfiles/claude/scripts/chw"
-alias xw="$HOME/dotfiles/codex/scripts/xw"
-alias xhw="$HOME/dotfiles/codex/scripts/xhw"
+alias cct="$HOME/dotfiles/claude/scripts/cct"
+alias cch="$HOME/dotfiles/claude/scripts/cch"
+alias cdt="$HOME/dotfiles/codex/scripts/cdt"
+alias cdh="$HOME/dotfiles/codex/scripts/cdh"
 ```
 
 Herdr custom command は `~/.zshrc` の alias に依存せず、dotfiles 内の script を直接呼びます。
