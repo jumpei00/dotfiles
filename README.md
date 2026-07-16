@@ -97,6 +97,7 @@ Mason が LSP server を自動インストールしますが、言語ランタ�
 | `ruff` | Python formatter |
 | `zigfmt` | Zig |
 | `sql-formatter` | SQL |
+| `terraform` | Terraform (`terraform fmt`) |
 
 ### Neovim の LSP / parser
 
@@ -113,6 +114,7 @@ Mason が LSP server を自動インストールしますが、言語ランタ�
 - `ruby_lsp`
 - `jdtls`
 - `kotlin_lsp`
+- `terraformls`
 
 [nvim/lua/plugins/treesitter.lua](./nvim/lua/plugins/treesitter.lua) では次の Treesitter parser を入れます。
 

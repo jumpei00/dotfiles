@@ -10,6 +10,7 @@ local servers = {
   "ruby_lsp",
   "jdtls",
   "kotlin_lsp",
+  "terraformls",
 }
 
 return {
