@@ -14,6 +14,7 @@ return {
         json = { "prettier" },
         yaml = { "prettier" },
         markdown = { "prettier" },
+        dockerfile = { "dockerfmt" },
         sql = { "sql_formatter" },
         terraform = { "terraform_fmt" },
       },

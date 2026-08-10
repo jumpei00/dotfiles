@@ -9,26 +9,28 @@
 - zsh
 - GitHub CLI を使う前提の GitHub 開発環境
 
-## まず実行するコマンド
+## セットアップ
 
-外部ツールは次のコマンドでまとめてインストールできます。
+新しいmacOS環境では、リポジトリを`~/dotfiles`へ配置して次のコマンドを実行します。Homebrew、基盤ツール、言語runtime、formatter、AIツール、設定ファイルのリンク、Neovimの初期構築までまとめて行います。
 
 ```sh
 cd ~/dotfiles
-./scripts/install-deps
+make setup
 ```
 
-実行内容を確認するだけなら:
+AIツールとHerdr integrationを導入しない場合:
 
 ```sh
-./scripts/install-deps --dry-run
+make setup-no-ai
 ```
 
-AI エージェント関連を入れない場合:
+利用できる処理を確認する場合:
 
 ```sh
-./scripts/install-deps --skip-ai
+make help
 ```
+
+既存の設定ファイルがある場合、`make links`は削除せず`*.backup-YYYYMMDDhhmmss`へ退避してからsymlinkを作成します。依存ツールのインストール内容だけを事前確認する場合は`./scripts/install-deps --dry-run`を使います。
 
 インストール後に必要な認証:
 
@@ -39,7 +41,7 @@ codex login
 
 Claude Code は初回起動時にログインしてください。
 
-## 手動インストール対象
+## インストール対象
 
 このリポジトリの設定から検出した外部依存です。
 
@@ -48,9 +50,9 @@ Claude Code は初回起動時にログインしてください。
 | ツール | 用途 | インストール |
 |---|---|---|
 | Homebrew | パッケージ管理 | `scripts/install-deps` が未導入時にインストール |
+| mise | 言語runtime・formatter・開発CLIのバージョン管理 | `brew install mise` |
 | Ghostty | ターミナル | `brew install --cask ghostty` |
 | JetBrainsMono Nerd Font | Ghostty/Neovim のアイコン表示 | `brew install --cask font-jetbrains-mono-nerd-font` |
-| Temurin JDK | Java runtime/JDK、`jdtls` | `brew install --cask temurin` |
 | Neovim | エディタ | `brew install neovim` |
 | tmux | 既存の pane/window/session 管理 | `brew install tmux` |
 | Herdr | AI agent 向け terminal workspace manager | `brew install herdr` |
@@ -70,19 +72,20 @@ Claude Code は初回起動時にログインしてください。
 | Herdr Claude integration | Herdr の agent panel/notification | `herdr integration install claude` |
 | Herdr Codex integration | Herdr の agent panel/notification | `herdr integration install codex` |
 
-### Neovim が必要とする言語ランタイム
+### miseが管理する言語runtime・開発CLI
 
-Mason が LSP server を自動インストールしますが、言語ランタイム自体は別途必要です。
+定義は[mise/config.toml](./mise/config.toml)にあります。グローバルのデフォルトとして使い、各プロジェクトの`mise.toml`で上書きできます。
 
-| ランタイム | 関連設定 |
+| ツール | 用途 |
 |---|---|
-| Node.js/npm | `ts_ls`, `jsonls`, `yamlls`, `dockerls`, Prettier, SQL formatter |
-| Go | `gopls`, `gofmt`, `goimports` |
-| Python | `pyright`, `ruff_format` |
-| Ruby | `ruby_lsp` |
-| Java | `jdtls`, Kotlin 周辺 |
-| Kotlin | Kotlin 開発、`kotlin_lsp` 周辺 |
-| Zig | `zls`, `zigfmt` |
+| Node.js/npm | JavaScript・TypeScriptとnpm backendの実行環境 |
+| Go | Go開発、`gofmt`、Go backendの実行環境 |
+| Python / uv | Python開発とパッケージ管理 |
+| Ruby | Ruby開発 |
+| Java / Kotlin | JVM・Kotlin開発 |
+| Zig | Zig開発、`zig fmt` |
+| Terraform | Terraform CLI、`terraform fmt` |
+| Biome | 必要に応じて利用するJS/TS toolchain。Neovimの標準formatterには未使用 |
 
 ### Neovim の外部 formatter / CLI
 
@@ -96,8 +99,11 @@ Mason が LSP server を自動インストールしますが、言語ランタ�
 | `prettier` | JavaScript, TypeScript, React, JSON, YAML, Markdown |
 | `ruff` | Python formatter |
 | `zigfmt` | Zig |
+| `dockerfmt` | Dockerfile |
 | `sql-formatter` | SQL |
 | `terraform` | Terraform (`terraform fmt`) |
+
+formatter CLIはmiseがインストールし、Conformはfiletypeとの対応付けだけを行います。標準のJS/TS系formatterはPrettierです。Biomeもインストールしますが、自動formatには割り当てていません。
 
 ### Neovim の LSP / parser
 
@@ -130,9 +136,33 @@ Mason が LSP server を自動インストールしますが、言語ランタ�
 - Vim
 - Vimdoc
 
-注意: `kotlin_lsp` は `cmd = { "intellij-server", "--stdio" }` に上書きしています。`intellij-server` が `PATH` にない環境では Kotlin LSP が起動しません。`intellij-server` を別途用意するか、Mason の `kotlin_lsp` デフォルト起動に戻してください。
+LSP serverはMasonが管理します。`kotlin_lsp`の`intellij-server`もMasonのbinから起動します。
 
 ## 設定ファイルのリンク
+
+通常は`make setup`に含まれるため、個別に作業する必要はありません。リンクだけを作成・更新する場合は次を実行します。
+
+```sh
+make links
+```
+
+### mise
+
+```sh
+mkdir -p ~/.config
+ln -s "$HOME/dotfiles/mise" ~/.config/mise
+mise install
+```
+
+`mise.lock`もこのリポジトリで管理します。
+
+### zsh
+
+```sh
+ln -s "$HOME/dotfiles/zsh/zshrc" ~/.zshrc
+```
+
+HomebrewやOrbStackのPATH設定後、最後にmiseを有効化します。
 
 ### Neovim
 
@@ -241,14 +271,7 @@ Claude Code は `claude -w <name>` の worktree 作成機能に任せます。Co
 
 ## zsh alias
 
-`~/.zshrc` に追記してください。
-
-```sh
-alias cct="$HOME/dotfiles/claude/scripts/cct"
-alias cch="$HOME/dotfiles/claude/scripts/cch"
-alias cdt="$HOME/dotfiles/codex/scripts/cdt"
-alias cdh="$HOME/dotfiles/codex/scripts/cdh"
-```
+`cct`、`cch`、`cdt`、`cdh`は[zsh/zshrc](./zsh/zshrc)で定義します。
 
 Herdr custom command は `~/.zshrc` の alias に依存せず、dotfiles 内の script を直接呼びます。
 
@@ -256,4 +279,7 @@ Herdr custom command は `~/.zshrc` の alias に依存せず、dotfiles 内の 
 
 - `gh auth login` は Neovim の PR review helper を使う前に必要です。
 - Neovim plugin のバージョンは [nvim/lazy-lock.json](./nvim/lazy-lock.json) で固定しています。
-- `scripts/install-deps` は依存ツールのインストールだけを行います。既存設定ファイルの上書きや symlink 作成は行いません。
+- 言語runtimeとformatterの実バージョンはmiseで管理し、プロジェクト固有のバージョンは各repoの`mise.toml`で上書きします。
+- `make setup`は依存ツールの導入、symlink作成、Neovim初期構築、検証を順番に行います。
+- `scripts/install-deps`は依存ツールのインストールだけを行い、既存設定ファイルは変更しません。
+- `scripts/link-config`は既存設定をバックアップしてからsymlinkを作成します。

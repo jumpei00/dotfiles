@@ -3,6 +3,7 @@ set -euo pipefail
 
 dry_run="no"
 skip_ai="no"
+repo_root=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 
 usage() {
   cat >&2 <<'EOF'
@@ -75,15 +76,6 @@ brew_install_formulae() {
     mysql-client
     postgresql
     herdr
-    node
-    go
-    python
-    ruby
-    kotlin
-    zig
-    stylua
-    lua-language-server
-    ruff
   )
 
   run brew update
@@ -94,7 +86,6 @@ brew_install_casks() {
   local casks=(
     ghostty
     font-jetbrains-mono-nerd-font
-    temurin
   )
 
   if [ "$skip_ai" = "no" ]; then
@@ -104,28 +95,14 @@ brew_install_casks() {
   run brew install --cask "${casks[@]}"
 }
 
-npm_install_globals() {
-  local packages=(
-    prettier
-    sql-formatter
-    pyright
-    typescript
-    typescript-language-server
-    yaml-language-server
-    vscode-langservers-extracted
-    dockerfile-language-server-nodejs
-  )
-
-  if [ "$skip_ai" = "no" ]; then
-    packages+=("@anthropic-ai/claude-code")
-  fi
-
-  run npm install -g "${packages[@]}"
+install_mise_tools() {
+  run env MISE_GLOBAL_CONFIG_FILE="$repo_root/mise/config.toml" mise install
 }
 
-go_install_tools() {
-  run go install golang.org/x/tools/gopls@latest
-  run go install golang.org/x/tools/cmd/goimports@latest
+install_claude_code() {
+  [ "$skip_ai" = "no" ] || return 0
+  run env MISE_GLOBAL_CONFIG_FILE="$repo_root/mise/config.toml" \
+    mise exec -- npm install -g @anthropic-ai/claude-code
 }
 
 install_herdr_integrations() {
@@ -138,8 +115,8 @@ main() {
   ensure_homebrew
   brew_install_formulae
   brew_install_casks
-  npm_install_globals
-  go_install_tools
+  install_mise_tools
+  install_claude_code
   install_herdr_integrations
 
   cat <<'EOF'
@@ -150,8 +127,8 @@ Manual follow-up:
   - Run: gh auth login
   - Run: codex login
   - Run Claude Code's login flow on first launch.
-  - Start nvim once so lazy.nvim, Mason LSP servers, and Treesitter parsers can install.
-  - If Kotlin LSP fails with "intellij-server not found", install/provide intellij-server or change nvim/lua/plugins/lsp.lua to use Mason's kotlin_lsp default command.
+  - The Makefile's setup target handles config links and Neovim bootstrap.
+  - Restart the shell after setup completes.
 EOF
 }
 

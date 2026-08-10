@@ -1,0 +1,22 @@
+[tools]
+biome = "latest"
+go = "1.26"
+"go:golang.org/x/tools/cmd/goimports" = "latest"
+"go:github.com/reteps/dockerfmt" = { version = "latest", depends = ["go"] }
+java = "21"
+kotlin = { version = "latest", asset_pattern = "kotlin-compiler-*.zip", bin_path = "kotlinc/bin" }
+node = "24"
+prettier = "latest"
+"npm:sql-formatter" = "latest"
+python = "3.13"
+ruby = "3.4"
+ruff = "latest"
+stylua = "latest"
+terraform = "1.4.6"
+uv = "latest"
+zig = "0.16"
+
+[settings]
+
+[settings.ruby]
+compile = false

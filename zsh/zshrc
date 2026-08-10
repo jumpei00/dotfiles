@@ -1,0 +1,29 @@
+if [ -x /opt/homebrew/bin/brew ]; then
+  eval "$(/opt/homebrew/bin/brew shellenv)"
+elif [ -x /usr/local/bin/brew ]; then
+  eval "$(/usr/local/bin/brew shellenv)"
+fi
+
+if [ -f "$(brew --prefix)/share/google-cloud-sdk/path.zsh.inc" ]; then
+  source "$(brew --prefix)/share/google-cloud-sdk/path.zsh.inc"
+  source "$(brew --prefix)/share/google-cloud-sdk/completion.zsh.inc"
+fi
+
+export PATH="$HOME/go/bin:$PATH"
+
+alias ku="kubectl"
+alias tf="terraform"
+alias air="$HOME/go/bin/air"
+alias vi="nvim"
+
+alias cct="$HOME/dotfiles/claude/scripts/cct"
+alias cch="$HOME/dotfiles/claude/scripts/cch"
+alias cdt="$HOME/dotfiles/codex/scripts/cdt"
+alias cdh="$HOME/dotfiles/codex/scripts/cdh"
+
+# Added by OrbStack: command-line tools and integration
+source "$HOME/.orbstack/shell/init.zsh" 2>/dev/null || :
+
+if command -v mise >/dev/null 2>&1; then
+  eval "$(mise activate zsh)"
+fi
