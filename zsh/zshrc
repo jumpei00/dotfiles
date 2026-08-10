@@ -21,9 +21,6 @@ alias cch="$HOME/dotfiles/claude/scripts/cch"
 alias cdt="$HOME/dotfiles/codex/scripts/cdt"
 alias cdh="$HOME/dotfiles/codex/scripts/cdh"
 
-# Added by OrbStack: command-line tools and integration
-source "$HOME/.orbstack/shell/init.zsh" 2>/dev/null || :
-
 if command -v mise >/dev/null 2>&1; then
   eval "$(mise activate zsh)"
 fi

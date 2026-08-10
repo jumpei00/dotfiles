@@ -162,7 +162,7 @@ mise install
 ln -s "$HOME/dotfiles/zsh/zshrc" ~/.zshrc
 ```
 
-HomebrewやOrbStackのPATH設定後、最後にmiseを有効化します。
+HomebrewなどのPATH設定後、最後にmiseを有効化します。
 
 ### Neovim
 
