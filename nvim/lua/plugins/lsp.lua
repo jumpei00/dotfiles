@@ -13,6 +13,10 @@ local servers = {
   "terraformls",
 }
 
+local automatic_servers = vim.tbl_filter(function(server)
+  return server ~= "kotlin_lsp"
+end, servers)
+
 return {
   {
     "mason-org/mason.nvim",
@@ -26,7 +30,7 @@ return {
     },
     opts = {
       ensure_installed = servers,
-      automatic_enable = servers,
+      automatic_enable = automatic_servers,
     },
   },
   {
@@ -49,10 +53,6 @@ return {
             },
           },
         },
-      })
-
-      vim.lsp.config("kotlin_lsp", {
-        cmd = { "intellij-server", "--stdio" },
       })
 
       vim.diagnostic.config({

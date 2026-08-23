@@ -18,7 +18,11 @@ return {
       local ok_cmp, cmp = pcall(require, "cmp")
       local ok_autopairs, cmp_autopairs = pcall(require, "nvim-autopairs.completion.cmp")
       if ok_cmp and ok_autopairs then
-        cmp.event:on("confirm_done", cmp_autopairs.on_confirm_done())
+        cmp.event:on("confirm_done", cmp_autopairs.on_confirm_done({
+          filetypes = {
+            kotlin = false,
+          },
+        }))
       end
     end,
   },
