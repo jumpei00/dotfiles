@@ -16,6 +16,7 @@ terraform = "1.4.6"
 uv = "latest"
 zig = "0.16"
 gradle = "9.5.0"
+rust = { version = "1.99.1", components = "rustfmt,clippy,rust-analyzer" }
 
 [settings]
 
