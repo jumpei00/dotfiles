@@ -10,6 +10,7 @@ if [ -f "$(brew --prefix)/share/google-cloud-sdk/path.zsh.inc" ]; then
 fi
 
 export PATH="$HOME/go/bin:$PATH"
+export PATH="$HOME/.local/bin:$PATH"
 
 alias ku="kubectl"
 alias tf="terraform"
